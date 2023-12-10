@@ -6,14 +6,9 @@ import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import java.util.function.BiFunction;
-import java.util.function.BiPredicate;
-import java.util.function.Function;
-import java.util.function.Predicate;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.IntStream;
-import java.util.stream.Stream;
 
 public class DayThree {
 
@@ -21,7 +16,7 @@ public class DayThree {
     private static final Pattern symRgx = Pattern.compile("[*@=+\\-/%&#$]");
 
     public static int parseSchematics() throws IOException {
-        List<String> lines = Files.readAllLines(Paths.get("src/main/resources/shortDay3pt2.txt"));
+        List<String> lines = Files.readAllLines(Paths.get("src/main/resources/dayThree.txt"));
         int maxLine = lines.size();
         return parseSchematicsV2(lines, maxLine);
 
@@ -79,27 +74,21 @@ public class DayThree {
         return total;
     }
 
-    /**
-     * def calculation method (product) <- gear index on currentLine, search zone
-     * calculation method ->
-     *  needs two matches for num pattern in search zone
-     *      from gear, look for num patterns on same line ; extract to int ; incr product operands to 1
-     *      look above, repeat
-     *      look below, repeat
-     *      product operands < 2 ret 0L else return product
-     *  return sum of products for line
-     */
     private static int findGearRatio(String currentLine, String... surroundings) {
         Matcher gearMatch = Pattern.compile("\\*").matcher(currentLine);
         int total = 0;
         int startIndex = 0;
-
         while (gearMatch.find()) {
             String currentGear = gearMatch.group();
             startIndex = currentLine.indexOf(currentGear, startIndex);
             int[] searchZone = defineLargeSearchZone(currentLine, startIndex);
-            total += extractGearOperands(searchZone, currentLine, surroundings);
-            startIndex = currentLine.indexOf(currentGear) + 1;
+            int forGear =  extractGearOperands(searchZone, currentLine, surroundings);
+            if (forGear == 1140) {
+                System.out.println(currentLine);
+                System.out.println("for gear -> " + forGear);
+            }
+            total += forGear;
+            startIndex += 1;
         }
         return total;
     }
@@ -107,44 +96,65 @@ public class DayThree {
     private static int extractGearOperands(int[] searchZone, String currentLine, String... surroundings) {
         List<String> lines = new ArrayList<>(Arrays.asList(surroundings));
         lines.add(currentLine);
-        int gearIndex = currentLine.indexOf("*", searchZone[2]);
         int totalOperands = 0;
         int totalForGear = 1;
         for (var l : lines) {
             String zone = l.substring(searchZone[0], searchZone[1]);
-            int totalForZone = calculateForZone(gearIndex, zone);
-            if (totalForZone > 0) {
-                totalForGear *= totalForZone;
+            int totalForLine = calculateForLine(zone);
+            System.out.println(totalForLine);
+            if (totalForLine > 999) {
+                totalOperands += 2;
+                totalForGear = totalForLine;
+                break;
+            }
+            if (totalForLine > 0) {
+                totalForGear *= totalForLine;
                 totalOperands++;
             }
-            if (totalOperands == 2) break;
         }
-        return totalForGear == 1 || totalOperands != 2 ? 0 : totalForGear;
+        return totalForGear == 1 || totalOperands % 2 != 0 ? 0 : totalForGear;
     }
 
-    private static int calculateForZone(int gearIndex, String zone) {
+    private static int calculateForLine(String line) {
         int totalForZone = 0;
-        Matcher zoneMatcher = numRgx.matcher(zone);
+        int gearIndex = 3;
+        int operandsOnSameLine = 0;
+        Matcher zoneMatcher = numRgx.matcher(line);
+        System.out.println("for zone -> " + line);
         while (zoneMatcher.find()) {
             String matchedNum = zoneMatcher.group();
-            int lastIndexOfNum = zone.indexOf(matchedNum) + matchedNum.length() - 1;
-            int firstIndexOfNum = zone.indexOf(matchedNum);
+            int lastIndexOfNum = line.indexOf(matchedNum) + matchedNum.length() - 1;
+            int firstIndexOfNum = line.indexOf(matchedNum) ;
+
+            // matches the last 3 as the first 3 in 380 -> gets it as an operand, resulting in returning 3 * 380 as a gear ratio
             if (lastIndexOfNum == gearIndex || lastIndexOfNum == gearIndex-1) {
+                System.out.println("before for num " + matchedNum);
+                if (operandsOnSameLine == 1) {
+                    totalForZone *= Integer.parseInt(matchedNum);
+                    break;
+                }
                 totalForZone += Integer.parseInt(matchedNum);
-            } else if (firstIndexOfNum == gearIndex || lastIndexOfNum == gearIndex+1) {
+                operandsOnSameLine++;
+
+            } else if (firstIndexOfNum == gearIndex || firstIndexOfNum == gearIndex+1) {
+                System.out.println("after");
+                if (operandsOnSameLine == 1) {
+                    totalForZone *= Integer.parseInt(matchedNum);
+                    break;
+                }
                 totalForZone += Integer.parseInt(matchedNum);
+                operandsOnSameLine++;
+            } else if (firstIndexOfNum >= gearIndex - 1 && lastIndexOfNum <= gearIndex + 1) {
+                System.out.println("overlaps for num " + matchedNum);
+                if (operandsOnSameLine == 1) {
+                    totalForZone *= Integer.parseInt(matchedNum);
+                    break;
+                }
+                totalForZone += Integer.parseInt(matchedNum);
+                operandsOnSameLine++;
             }
         }
         return totalForZone;
-    }
-
-    private static int[] defineGearSubzone(int zoneCenter, String largerZone) {
-        boolean isGearOnZone = largerZone.indexOf("*") == zoneCenter;
-        int indexOfZoneCenter = largerZone.indexOf(largerZone.charAt(zoneCenter));
-        int startZone = Math.max(0, isGearOnZone ? indexOfZoneCenter - 1 : indexOfZoneCenter);
-        int endZone = isGearOnZone ? indexOfZoneCenter + 1 : indexOfZoneCenter;
-
-        return new int[]{startZone, endZone};
     }
 
     private static int[] defineLargeSearchZone(String currentLine, int startIndex) {
