@@ -36,7 +36,6 @@ public class DayThree {
     }
 
 
-    //TODO -> not iterating properly through the whole line for gear matching
     public static int parseSchematicsV2(List<String> lines, int maxLine) {
         return IntStream.range(0, maxLine)
                 .map(line -> isSurrounded(line, maxLine - 1) ?
@@ -83,10 +82,6 @@ public class DayThree {
             startIndex = currentLine.indexOf(currentGear, startIndex);
             int[] searchZone = defineLargeSearchZone(currentLine, startIndex);
             int forGear =  extractGearOperands(searchZone, currentLine, surroundings);
-            if (forGear == 1140) {
-                System.out.println(currentLine);
-                System.out.println("for gear -> " + forGear);
-            }
             total += forGear;
             startIndex += 1;
         }
@@ -120,15 +115,14 @@ public class DayThree {
         int gearIndex = 3;
         int operandsOnSameLine = 0;
         Matcher zoneMatcher = numRgx.matcher(line);
-        System.out.println("for zone -> " + line);
+        int searchNumFrom = 0;
         while (zoneMatcher.find()) {
             String matchedNum = zoneMatcher.group();
-            int lastIndexOfNum = line.indexOf(matchedNum) + matchedNum.length() - 1;
+            int lastIndexOfNum = line.indexOf(matchedNum, searchNumFrom) + matchedNum.length() - 1;
             int firstIndexOfNum = line.indexOf(matchedNum) ;
 
             // matches the last 3 as the first 3 in 380 -> gets it as an operand, resulting in returning 3 * 380 as a gear ratio
             if (lastIndexOfNum == gearIndex || lastIndexOfNum == gearIndex-1) {
-                System.out.println("before for num " + matchedNum);
                 if (operandsOnSameLine == 1) {
                     totalForZone *= Integer.parseInt(matchedNum);
                     break;
@@ -137,7 +131,6 @@ public class DayThree {
                 operandsOnSameLine++;
 
             } else if (firstIndexOfNum == gearIndex || firstIndexOfNum == gearIndex+1) {
-                System.out.println("after");
                 if (operandsOnSameLine == 1) {
                     totalForZone *= Integer.parseInt(matchedNum);
                     break;
@@ -145,7 +138,6 @@ public class DayThree {
                 totalForZone += Integer.parseInt(matchedNum);
                 operandsOnSameLine++;
             } else if (firstIndexOfNum >= gearIndex - 1 && lastIndexOfNum <= gearIndex + 1) {
-                System.out.println("overlaps for num " + matchedNum);
                 if (operandsOnSameLine == 1) {
                     totalForZone *= Integer.parseInt(matchedNum);
                     break;
@@ -153,6 +145,7 @@ public class DayThree {
                 totalForZone += Integer.parseInt(matchedNum);
                 operandsOnSameLine++;
             }
+            searchNumFrom = lastIndexOfNum+1;
         }
         return totalForZone;
     }
